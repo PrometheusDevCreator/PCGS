@@ -23,21 +23,21 @@ import streamlit as st
 from pcgs_app.core.scalar_models import ScalarLevel, ScalarEntry, BLOOMS_VERBS
 from pcgs_app.logic.lexicon import Lex
 from pcgs_app.services import scalar_service
+from pcgs_app.ui.theme.shared_chrome import (
+    render_footer,
+    render_ai_console,
+    navigate_to_tab,
+    inject_shared_chrome_styles,
+    CURRENT_USER,
+    START_DATE,
+    PROGRAM_STATUS,
+    APPROVED_FOR_USE,
+    PKE_ICON,
+    HISTORY_LIMIT,
+)
 from pcgs_app.ui.theme.streamlit_theme import apply_base_theme
 from pcgs_app.ui.theme.tokens import ICONS, get_default_tokens
 from pcgs_app.ui.widgets.status_lights import render_status_dot
-
-
-# ============================================================================
-# Constants
-# ============================================================================
-
-CURRENT_USER = "Matthew Dodds"
-START_DATE = "24/11/25"
-PROGRAM_STATUS = "IN DEVELOPMENT"
-APPROVED_FOR_USE = "N"
-
-PKE_ICON = ICONS.get("pke", "🔥")
 
 # Column configuration for the scalar grid
 SCALAR_COLUMNS = [
@@ -69,6 +69,7 @@ def render_tab_scalar() -> None:
     This is the main entry point called by app_root.py.
     """
     apply_base_theme(get_default_tokens())
+    inject_shared_chrome_styles()
     _init_state()
     
     st.markdown("<div class='pcgs-root pcgs-scalar-root'>", unsafe_allow_html=True)
@@ -76,7 +77,7 @@ def render_tab_scalar() -> None:
     _render_region("pcgs-region-scalar-left", _render_control_panel)
     _render_region("pcgs-region-scalar-right", _render_grid_panel)
     _render_region("pcgs-region-ai", _render_ai_band)
-    _render_region("pcgs-region-footer", _render_footer)
+    _render_region("pcgs-region-footer", _render_footer_section)
     st.markdown("</div>", unsafe_allow_html=True)
     
     # Inject Scalar Manager specific styles
@@ -602,23 +603,12 @@ def _render_ai_band() -> None:
 # Footer
 # ============================================================================
 
-def _render_footer() -> None:
-    """Render the bottom status strip."""
+def _render_footer_section() -> None:
+    """Render the bottom status strip using shared chrome."""
     counts = scalar_service.get_all_counts()
     total_entries = sum(counts.values())
     progress = min(100, int((total_entries / 20) * 100)) if total_entries else 0
-    
-    st.markdown("<div class='pcgs-footer'>", unsafe_allow_html=True)
-    st.markdown(f"<div><strong>Owner:</strong> {CURRENT_USER.upper()}</div>", unsafe_allow_html=True)
-    st.markdown(f"<div><strong>Start Date:</strong> {START_DATE}</div>", unsafe_allow_html=True)
-    st.markdown(f"<div><strong>Status:</strong> {PROGRAM_STATUS}</div>", unsafe_allow_html=True)
-    st.markdown(
-        f"<div><strong>Progress:</strong> {progress}%"
-        f"<div class='pcgs-progress'><div class='pcgs-progress__value' style='width: {progress}%;'></div></div></div>",
-        unsafe_allow_html=True,
-    )
-    st.markdown(f"<div><strong>Approved for Use Y/N:</strong> {APPROVED_FOR_USE}</div>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    render_footer(progress_percent=progress)
 
 
 # ============================================================================
@@ -626,9 +616,8 @@ def _render_footer() -> None:
 # ============================================================================
 
 def _navigate_to_tab(tab_id: str) -> None:
-    """Navigate to a different tab."""
-    st.session_state[NAV_STATE_KEY] = tab_id
-    st.info(f"Navigation to {tab_id} - Tab switching will be implemented in the main app shell.")
+    """Navigate to a different tab using shared chrome helper."""
+    navigate_to_tab(tab_id)
 
 
 # ============================================================================

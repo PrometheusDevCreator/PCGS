@@ -12,14 +12,22 @@ from typing import Any, Callable, Dict, List, Optional
 import streamlit as st
 
 from pcgs_app.logic.lexicon import Lex
+from pcgs_app.ui.theme.shared_chrome import (
+    render_footer,
+    render_ai_console,
+    navigate_to_tab,
+    inject_shared_chrome_styles,
+    CURRENT_USER,
+    START_DATE,
+    PROGRAM_STATUS,
+    APPROVED_FOR_USE,
+    PKE_ICON,
+    HISTORY_LIMIT,
+)
 from pcgs_app.ui.theme.streamlit_theme import apply_base_theme
 from pcgs_app.ui.theme.tokens import ICONS, get_default_tokens
 from pcgs_app.ui.widgets.status_lights import render_status_dot
 
-CURRENT_USER = "Matthew Dodds"
-START_DATE = "24/11/25"
-PROGRAM_STATUS = "IN DEVELOPMENT"
-APPROVED_FOR_USE = "N"
 NEW_COURSE_LABEL = "-- NEW COURSE --"
 
 COURSE_LEVEL_OPTIONS = ["", "Foundation", "Intermediate", "Advanced", "Executive"]
@@ -47,9 +55,7 @@ MANAGER_TILES = [
 
 COURSE_FLOW_SEQUENCE = [Lex.C_INFO, Lex.C_DESC, Lex.CLO, Lex.SCALEMGR, Lex.CONTMGR, Lex.LSNMGR]
 
-PKE_ICON = ICONS.get("pke", "🔥")
 MIN_CLOS = 3
-HISTORY_LIMIT = 60
 
 DEFAULT_COURSE_INFO: Dict[Lex, str] = {
     Lex.C_NAME: "",
@@ -173,6 +179,7 @@ def render_tab_create_course(course: Optional[Dict[str, Any]] = None) -> None:
     """
 
     apply_base_theme(get_default_tokens())
+    inject_shared_chrome_styles()
     _init_state(course)
     _tick_ai_flash()
     _update_completion_flags()
@@ -187,7 +194,7 @@ def render_tab_create_course(course: Optional[Dict[str, Any]] = None) -> None:
     _render_region("pcgs-region-connectors", _render_connectors)
     _render_region("pcgs-region-managers", _render_managers_row)
     _render_region("pcgs-region-ai", _render_ai_band)
-    _render_region("pcgs-region-footer", _render_footer)
+    _render_region("pcgs-region-footer", _render_footer_section)
     st.markdown("</div>", unsafe_allow_html=True)
 
 
@@ -372,13 +379,15 @@ def _render_header_status() -> None:
 
 
 def _render_top_buttons() -> None:
+    """Render horizontal action buttons in the header."""
     specs = [
         ("LOAD", "neutral", _handle_load_button),
         ("SAVE", "primary", _handle_save_button),
         ("DELETE", "danger", _handle_delete_button),
-        ("CLEAR / RESET", "neutral", _handle_clear_button),
+        ("RESET", "neutral", _handle_clear_button),
     ]
-    st.markdown("<div class='pcgs-top-buttons'>", unsafe_allow_html=True)
+    # Use horizontal layout for dashboard
+    st.markdown("<div class='pcgs-top-buttons--horizontal'>", unsafe_allow_html=True)
     for label, tone, handler in specs:
         st.markdown(
             f"<div class='pcgs-pill-button pcgs-pill-button--{tone}'>",
@@ -634,10 +643,8 @@ def _navigate_to_manager(mode: str, label: str) -> None:
         "lesson": "lessons",
     }
     tab_id = tab_map.get(mode, mode)
-    
-    # Set navigation state for the main app shell to handle
-    st.session_state["pcgs_navigate_to_tab"] = tab_id
-    st.info(f"Navigating to {label}. Select '{label}' from the sidebar to continue.")
+    navigate_to_tab(tab_id)
+    st.info(f"Navigating to {label}. Select the tab from the sidebar to continue.")
 
 
 # ---------------------------------------------------------------------------
@@ -672,22 +679,12 @@ def _render_ai_band() -> None:
         _handle_ai_submission()
 
 
-def _render_footer() -> None:
+def _render_footer_section() -> None:
+    """Render the footer using shared chrome component."""
     total = len(PROGRESS_STEPS)
     completed = sum(1 for stage in PROGRESS_STEPS if _stage_complete(stage))
     progress = round((completed / total) * 100) if total else 0
-
-    st.markdown("<div class='pcgs-footer'>", unsafe_allow_html=True)
-    st.markdown(f"<div><strong>Owner:</strong> {CURRENT_USER.upper()}</div>", unsafe_allow_html=True)
-    st.markdown(f"<div><strong>Start Date:</strong> {START_DATE}</div>", unsafe_allow_html=True)
-    st.markdown(f"<div><strong>Status:</strong> {PROGRAM_STATUS}</div>", unsafe_allow_html=True)
-    st.markdown(
-        f"<div><strong>Progress:</strong> {progress}%"
-        f"<div class='pcgs-progress'><div class='pcgs-progress__value' style='width: {progress}%;'></div></div></div>",
-        unsafe_allow_html=True,
-    )
-    st.markdown(f"<div><strong>Approved for Use Y/N:</strong> {APPROVED_FOR_USE}</div>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    render_footer(progress_percent=progress)
 
 
 # ---------------------------------------------------------------------------
