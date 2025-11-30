@@ -612,10 +612,32 @@ def _render_managers_row() -> None:
             f"OPEN {label}",
             key=f"pcgs_manager_{mode}",
         ):
-            st.info(f"This will open the {label.title()} tab in a future step.")
+            _navigate_to_manager(mode, label)
         st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
+
+
+def _navigate_to_manager(mode: str, label: str) -> None:
+    """
+    Navigate to a manager tab.
+    Sets session state that the main app shell can read to switch tabs.
+    
+    Args:
+        mode: Tab mode identifier ("scalar", "content", "lesson")
+        label: Display label for the tab
+    """
+    # Map mode to tab id
+    tab_map = {
+        "scalar": "scalar",
+        "content": "content", 
+        "lesson": "lessons",
+    }
+    tab_id = tab_map.get(mode, mode)
+    
+    # Set navigation state for the main app shell to handle
+    st.session_state["pcgs_navigate_to_tab"] = tab_id
+    st.info(f"Navigating to {label}. Select '{label}' from the sidebar to continue.")
 
 
 # ---------------------------------------------------------------------------
