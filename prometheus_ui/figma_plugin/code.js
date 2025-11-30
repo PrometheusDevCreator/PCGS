@@ -19,6 +19,10 @@ const COLORS = {
   glassSilverLight: { r: 0.749, g: 0.757, b: 0.776 },    // #BFC1C6 - Button gradient top
   glassSilverDark: { r: 0.549, g: 0.557, b: 0.573 },     // #8C8E92 - Button gradient bottom
   
+  // Disabled button colors
+  disabledLight: { r: 0.35, g: 0.35, b: 0.35 },          // Disabled gradient top
+  disabledDark: { r: 0.25, g: 0.25, b: 0.25 },           // Disabled gradient bottom
+  
   // Text colors
   pureWhite: { r: 1, g: 1, b: 1 },                       // #FFFFFF - Primary text
   softGrey: { r: 0.780, g: 0.780, b: 0.780 },            // #C7C7C7 - Secondary text
@@ -27,6 +31,9 @@ const COLORS = {
   // Status colors
   approvedGreen: { r: 0.290, g: 1.0, b: 0.502 },         // #4AFF80 - Approved flag
   statusGreen: { r: 0.0, g: 0.831, b: 0.329 },           // #00D454 - General status values
+  hoverGreen: { r: 0.2, g: 0.9, b: 0.4 },                // Hover state green
+  dragGreen: { r: 0.4, g: 1.0, b: 0.6 },                 // Luminous drag state green
+  editOrange: { r: 1.0, g: 0.6, b: 0.2 },                // Edit state orange
   
   // Legacy compatibility (will be phased out)
   buttonBorder: { r: 1, g: 1, b: 1 },                    // #FFFFFF - Button border (white per spec)
@@ -215,19 +222,42 @@ function createGlassButton(name, x, y, width, height, label, cornerRadius = 24) 
 }
 
 // Small glass button for top bar (Load, Save, Delete, Reset)
-function createSmallGlassButton(name, x, y, width, height, label) {
+function createSmallGlassButton(name, x, y, width, height, label, disabled = false) {
   const buttonFrame = createFrame(name, x, y, width, height);
   
-  // Button background with silver gradient
-  const bg = createGradientRect(0, 0, width, height, 12, 
-    COLORS.glassSilverLight, COLORS.glassSilverDark, 
-    COLORS.pureWhite, 2);
+  // Button background - use disabled colors if disabled
+  const colorTop = disabled ? COLORS.disabledLight : COLORS.glassSilverLight;
+  const colorBottom = disabled ? COLORS.disabledDark : COLORS.glassSilverDark;
+  const strokeColor = disabled ? COLORS.inactiveGrey : COLORS.pureWhite;
+  const textColor = disabled ? COLORS.inactiveGrey : COLORS.pureWhite;
+  
+  const bg = createGradientRect(0, 0, width, height, 12, colorTop, colorBottom, strokeColor, 2);
   bg.name = "Btn_Background";
-  addInnerShadow(bg, 0.15, 3);
+  if (!disabled) {
+    addInnerShadow(bg, 0.15, 3);
+  }
   buttonFrame.appendChild(bg);
   
   // Button label
-  const labelText = createText(label.toUpperCase(), 0, 0, 14, COLORS.pureWhite, "SemiBold", 8);
+  const labelText = createText(label.toUpperCase(), 0, 0, 14, textColor, "SemiBold", 8);
+  labelText.name = "Label";
+  labelText.textAlignHorizontal = "CENTER";
+  labelText.textAlignVertical = "CENTER";
+  labelText.resize(width, height);
+  buttonFrame.appendChild(labelText);
+  
+  return buttonFrame;
+}
+
+// Small segmented button for edit tools
+function createSegmentedButton(name, x, y, width, height, label) {
+  const buttonFrame = createFrame(name, x, y, width, height);
+  
+  const bg = createRoundedRect(0, 0, width, height, 8, COLORS.prometheusBlack, COLORS.softGrey, 1, 0.8);
+  bg.name = "Btn_Background";
+  buttonFrame.appendChild(bg);
+  
+  const labelText = createText(label.toUpperCase(), 0, 0, 10, COLORS.softGrey, "Medium", 5);
   labelText.name = "Label";
   labelText.textAlignHorizontal = "CENTER";
   labelText.textAlignVertical = "CENTER";
@@ -266,6 +296,24 @@ function createPanel(name, x, y, width, height, title, strokeColor, cornerRadius
   // Panel title
   if (title) {
     const titleText = createText(title.toUpperCase(), 20, 16, 18, COLORS.pureWhite, "SemiBold", 15);
+    titleText.name = "Label_Title";
+    panelFrame.appendChild(titleText);
+  }
+  
+  return panelFrame;
+}
+
+// Small panel for warnings
+function createSmallPanel(name, x, y, width, height, title, strokeColor, cornerRadius = 16) {
+  const panelFrame = createFrame(name, x, y, width, height);
+  
+  const bg = createRoundedRect(0, 0, width, height, cornerRadius, COLORS.panelFill, strokeColor, 2);
+  bg.name = "Panel_Background";
+  addGlowEffect(bg, strokeColor, 16, 0.2);
+  panelFrame.appendChild(bg);
+  
+  if (title) {
+    const titleText = createText(title.toUpperCase(), 12, 10, 12, COLORS.pureWhite, "SemiBold", 10);
     titleText.name = "Label_Title";
     panelFrame.appendChild(titleText);
   }
@@ -323,6 +371,157 @@ function createManagerNode(name, x, y, width, height, label) {
   return nodeFrame;
 }
 
+// PKE Icon (flame/fire icon)
+function createPKEIcon(name, x, y, size, isGold = true) {
+  const iconFrame = createFrame(name, x, y, size, size);
+  const color = isGold ? COLORS.glowYellow : COLORS.neonBlue;
+  
+  const iconText = createText("🔥", 0, 0, size - 4, color, "Regular");
+  iconText.name = "Icon";
+  iconFrame.appendChild(iconText);
+  
+  return iconFrame;
+}
+
+// ============================================
+// SCALAR MANAGER COMPONENTS
+// ============================================
+
+// Scalar row item with different states
+function createScalarRow(name, x, y, width, height, serial, text, state = "normal") {
+  const rowFrame = createFrame(name, x, y, width, height);
+  
+  let textColor = COLORS.pureWhite;
+  let serialColor = COLORS.softGrey;
+  let strokeColor = COLORS.neonBlue;
+  let strokeOpacity = 0.5;
+  
+  switch(state) {
+    case "hover":
+      textColor = COLORS.hoverGreen;
+      serialColor = COLORS.hoverGreen;
+      strokeColor = COLORS.hoverGreen;
+      strokeOpacity = 0.7;
+      break;
+    case "drag":
+      textColor = COLORS.dragGreen;
+      serialColor = COLORS.dragGreen;
+      strokeColor = COLORS.dragGreen;
+      strokeOpacity = 1.0;
+      break;
+    case "edit":
+      textColor = COLORS.editOrange;
+      serialColor = COLORS.editOrange;
+      strokeColor = COLORS.editOrange;
+      strokeOpacity = 0.8;
+      break;
+  }
+  
+  // Row background
+  const bg = createRoundedRect(0, 0, width, height, 6, COLORS.prometheusBlack, strokeColor, 1, 0.7);
+  bg.name = "Row_Background";
+  if (state === "drag") {
+    addGlowEffect(bg, COLORS.dragGreen, 8, 0.4);
+  }
+  rowFrame.appendChild(bg);
+  
+  // Serial number
+  const serialText = createText(serial, 8, (height - 12) / 2, 11, serialColor, "Medium");
+  serialText.name = "Label_Serial";
+  rowFrame.appendChild(serialText);
+  
+  // Text content
+  const contentText = createText(text, 45, (height - 12) / 2, 11, textColor, "Regular");
+  contentText.name = "Label_Content";
+  rowFrame.appendChild(contentText);
+  
+  // Edit state icons (confirm/cancel)
+  if (state === "edit") {
+    const confirmIcon = createText("✔", width - 35, (height - 12) / 2, 12, COLORS.statusGreen, "Medium");
+    confirmIcon.name = "Btn_Confirm";
+    rowFrame.appendChild(confirmIcon);
+    
+    const cancelIcon = createText("✖", width - 18, (height - 12) / 2, 12, { r: 0.9, g: 0.2, b: 0.2 }, "Medium");
+    cancelIcon.name = "Btn_Cancel";
+    rowFrame.appendChild(cancelIcon);
+  }
+  
+  return rowFrame;
+}
+
+// Scalar column with header, content area, and entry row
+function createScalarColumn(name, x, y, width, height, label, count = 0) {
+  const colFrame = createFrame(name, x, y, width, height);
+  
+  // Column background
+  const bg = createRoundedRect(0, 0, width, height, 16, COLORS.panelFill, COLORS.neonBlue, 2);
+  bg.name = "Column_Background";
+  addGlowEffect(bg, COLORS.neonBlue, 12, 0.15);
+  colFrame.appendChild(bg);
+  
+  // Header area
+  const headerBg = createRoundedRect(0, 0, width, 36, 16, COLORS.prometheusBlack, null, 0, 0.5);
+  // Fix corner radius for top only
+  headerBg.topLeftRadius = 16;
+  headerBg.topRightRadius = 16;
+  headerBg.bottomLeftRadius = 0;
+  headerBg.bottomRightRadius = 0;
+  headerBg.name = "Header_Background";
+  colFrame.appendChild(headerBg);
+  
+  // Column label
+  const labelText = createText(label.toUpperCase(), 10, 10, 11, COLORS.pureWhite, "SemiBold", 8);
+  labelText.name = "Label_Header";
+  colFrame.appendChild(labelText);
+  
+  // PKE icon
+  const pkeIcon = createPKEIcon("Icon_PKE_" + label.replace(/\s/g, ''), width - 32, 8, 18, true);
+  colFrame.appendChild(pkeIcon);
+  
+  // Counter
+  const counterText = createText(`(${count})`, width - 50, 10, 11, COLORS.softGrey, "Regular");
+  counterText.name = "Label_Counter";
+  colFrame.appendChild(counterText);
+  
+  // Content area with sample rows showing different states
+  const contentY = 42;
+  const rowHeight = 28;
+  const rowGap = 4;
+  
+  // Sample rows demonstrating states
+  if (label === "CLOs") {
+    const row1 = createScalarRow("Row_1_Normal", 6, contentY, width - 12, rowHeight, "1", "Sample CLO text...", "normal");
+    colFrame.appendChild(row1);
+    
+    const row2 = createScalarRow("Row_2_Hover", 6, contentY + rowHeight + rowGap, width - 12, rowHeight, "2", "Hover state example", "hover");
+    colFrame.appendChild(row2);
+    
+    const row3 = createScalarRow("Row_3_Drag", 6, contentY + (rowHeight + rowGap) * 2, width - 12, rowHeight, "3", "Drag state example", "drag");
+    colFrame.appendChild(row3);
+    
+    const row4 = createScalarRow("Row_4_Edit", 6, contentY + (rowHeight + rowGap) * 3, width - 12, rowHeight, "4", "Edit state example", "edit");
+    colFrame.appendChild(row4);
+  } else {
+    // Empty state for other columns
+    const emptyText = createText("No items", width / 2 - 25, height / 2 - 10, 11, COLORS.inactiveGrey, "Regular");
+    emptyText.name = "Label_Empty";
+    colFrame.appendChild(emptyText);
+  }
+  
+  // Data entry row at bottom
+  const entryY = height - 34;
+  const entryBg = createRoundedRect(6, entryY, width - 12, 28, 6, COLORS.inputBg, COLORS.neonBlue, 1, 0.6);
+  entryBg.name = "Input_Entry";
+  colFrame.appendChild(entryBg);
+  
+  // Entry placeholder
+  const entryPlaceholder = createText("+ Add new...", 14, entryY + 7, 10, COLORS.inactiveGrey, "Regular");
+  entryPlaceholder.name = "Label_EntryPlaceholder";
+  colFrame.appendChild(entryPlaceholder);
+  
+  return colFrame;
+}
+
 // ============================================
 // MAIN UI SECTIONS
 // ============================================
@@ -332,7 +531,7 @@ const MARGIN = 40;  // Spec: 32-48px outer margin
 const FRAME_WIDTH = 1520;
 const FRAME_HEIGHT = 900;
 
-function createHeader(parent) {
+function createHeader(parent, pageTitle = null) {
   const headerFrame = createFrame("Global/TopBar", 0, 0, FRAME_WIDTH, 70);
   
   // Subtle neon-blue outline - Spec: 1-2px
@@ -354,6 +553,13 @@ function createHeader(parent) {
   const subtitle = createText("GENERATION SYSTEM 2.0", MARGIN + 60, 38, 22, COLORS.pureWhite, "Bold", 8);
   subtitle.name = "Label_Title2";
   headerFrame.appendChild(subtitle);
+  
+  // Page title if provided
+  if (pageTitle) {
+    const pageTitleText = createText(pageTitle.toUpperCase(), 400, 25, 18, COLORS.neonBlue, "SemiBold", 10);
+    pageTitleText.name = "Label_PageTitle";
+    headerFrame.appendChild(pageTitleText);
+  }
   
   parent.appendChild(headerFrame);
   return headerFrame;
@@ -439,20 +645,22 @@ function createCourseSelectionArea(parent) {
   return selectionFrame;
 }
 
-function createTopBarButtons(parent) {
+function createTopBarButtons(parent, disableLoadDelete = false) {
   // Spec: small glass buttons (Load, Save, Delete, Reset) - 80-100px width
   const buttonsFrame = createFrame("Global/TopBarActions", FRAME_WIDTH - MARGIN - 440, 15, 440, 45);
   
-  const loadBtn = createSmallGlassButton("Btn_Load", 0, 0, 90, 40, "LOAD");
+  const loadBtn = createSmallGlassButton("Btn_Load", 0, 0, 90, 40, "LOAD", disableLoadDelete);
   buttonsFrame.appendChild(loadBtn);
   
-  const saveBtn = createSmallGlassButton("Btn_Save", 110, 0, 90, 40, "SAVE");
+  const saveBtn = createSmallGlassButton("Btn_Save", 110, 0, 90, 40, "SAVE", false);
   buttonsFrame.appendChild(saveBtn);
   
-  const deleteBtn = createSmallGlassButton("Btn_Delete", 220, 0, 90, 40, "DELETE");
+  const deleteBtn = createSmallGlassButton("Btn_Delete", 220, 0, 90, 40, "DELETE", disableLoadDelete);
   buttonsFrame.appendChild(deleteBtn);
   
-  const resetBtn = createSmallGlassButton("Btn_Reset", 330, 0, 90, 40, "RESET");
+  // On Scalar Manager, this is CLEAR instead of RESET
+  const resetLabel = disableLoadDelete ? "CLEAR" : "RESET";
+  const resetBtn = createSmallGlassButton("Btn_Reset", 330, 0, 90, 40, resetLabel, false);
   buttonsFrame.appendChild(resetBtn);
   
   parent.appendChild(buttonsFrame);
@@ -552,12 +760,12 @@ function createManagerNodes(parent) {
   return nodesFrame;
 }
 
-function createAIConsole(parent) {
+function createAIConsole(parent, yOffset = 635) {
   // Spec Section 1.8: 140-160px height, 28-32px radius, 4px Glow Yellow stroke
-  const aiFrame = createFrame("Global/AIConsole", 460, 635, 560, 150);
+  const aiFrame = createFrame("Global/AIConsole", MARGIN, yOffset, FRAME_WIDTH - (MARGIN * 2), 150);
   
   // Background with yellow/gold accent
-  const bg = createRoundedRect(0, 0, 560, 150, 28, { r: 0, g: 0, b: 0 }, COLORS.glowYellow, 4);
+  const bg = createRoundedRect(0, 0, FRAME_WIDTH - (MARGIN * 2), 150, 28, { r: 0, g: 0, b: 0 }, COLORS.glowYellow, 4);
   bg.name = "Console_Background";
   addGlowEffect(bg, COLORS.glowYellow, 28, 0.25);
   addInnerShadow(bg, 0.2, 12);
@@ -567,11 +775,11 @@ function createAIConsole(parent) {
   const header = createText("PROMETHEUS AI", 0, 14, 14, COLORS.softGrey, "SemiBold", 10);
   header.name = "Label_Header";
   header.textAlignHorizontal = "CENTER";
-  header.resize(560, 20);
+  header.resize(FRAME_WIDTH - (MARGIN * 2), 20);
   aiFrame.appendChild(header);
   
   // Chat/terminal area - Spec: Monospace green terminal font
-  const chatArea = createRoundedRect(20, 40, 520, 95, 12, COLORS.prometheusBlack, null, 0, 0.8);
+  const chatArea = createRoundedRect(20, 40, FRAME_WIDTH - (MARGIN * 2) - 40, 95, 12, COLORS.prometheusBlack, null, 0, 0.8);
   chatArea.name = "Console_Terminal";
   aiFrame.appendChild(chatArea);
   
@@ -688,7 +896,7 @@ function createBottomStrip(parent) {
   return statusFrame;
 }
 
-// Workflow Connectors - Correct flow per spec
+// Workflow Connectors - Correct flow per spec (Dashboard only)
 function createWorkflowConnectors(parent) {
   const connectorsFrame = createFrame("Dashboard/Connectors_Workflow", 0, 0, FRAME_WIDTH, FRAME_HEIGHT);
   connectorsFrame.fills = [];
@@ -730,14 +938,10 @@ function createWorkflowConnectors(parent) {
   connectorsFrame.appendChild(junction);
   
   // Branch lines from junction to each manager
-  // Left branch to Scalar
   const branchLeft = createLine(nodeRowTop.x, nodeRowTop.y, scalarTop.x, scalarTop.y, COLORS.neonBlue, 2, 0.5);
   branchLeft.name = "Connector_Branch_Scalar";
   connectorsFrame.appendChild(branchLeft);
   
-  // Center stays at junction (Content is centered)
-  
-  // Right branch to Lesson
   const branchRight = createLine(nodeRowTop.x, nodeRowTop.y, 940, scalarTop.y, COLORS.neonBlue, 2, 0.5);
   branchRight.name = "Connector_Branch_Lesson";
   connectorsFrame.appendChild(branchRight);
@@ -747,7 +951,6 @@ function createWorkflowConnectors(parent) {
   c5.name = "Connector_C5_Scalar-Content";
   connectorsFrame.appendChild(c5);
   
-  // Small junction between Scalar and Content
   const junctionSC = createCircle((scalarRight.x + contentLeft.x) / 2 - 3, scalarRight.y - 3, 6, COLORS.neonBlue);
   junctionSC.name = "Junction_SC";
   connectorsFrame.appendChild(junctionSC);
@@ -757,13 +960,186 @@ function createWorkflowConnectors(parent) {
   c6.name = "Connector_C6_Content-Lesson";
   connectorsFrame.appendChild(c6);
   
-  // Small junction between Content and Lesson
   const junctionCL = createCircle((contentRight.x + lessonLeft.x) / 2 - 3, contentRight.y - 3, 6, COLORS.neonBlue);
   junctionCL.name = "Junction_CL";
   connectorsFrame.appendChild(junctionCL);
   
   parent.appendChild(connectorsFrame);
   return connectorsFrame;
+}
+
+// ============================================
+// SCALAR MANAGER PAGE
+// ============================================
+
+function createScalarControlPanel(parent) {
+  // Left column (28-30%) for Scalar Manager
+  const leftWidth = 400;
+  const panelFrame = createPanel("Scalar/Panel_ScalarControl", MARGIN, 155, leftWidth, 580, "SCALAR CONTROL", COLORS.neonBlue, 28);
+  
+  // A) IMPORT SCALAR section
+  const importBtn = createGlassButton("Btn_ImportScalar", 20, 55, leftWidth - 40, 50, "IMPORT SCALAR", 20);
+  panelFrame.appendChild(importBtn);
+  
+  const importHelp = createText("Import from Excel template (rows 6+, columns B–K).", 25, 115, 10, COLORS.softGrey, "Regular");
+  importHelp.name = "Label_ImportHelp";
+  panelFrame.appendChild(importHelp);
+  
+  // B) EDIT TOOLS section
+  const editToolsLabel = createText("EDIT TOOLS", 20, 145, 12, COLORS.pureWhite, "SemiBold", 8);
+  editToolsLabel.name = "Label_EditTools";
+  panelFrame.appendChild(editToolsLabel);
+  
+  const editTools = ["SELECT", "REORDER", "BULK EDIT", "DELETE"];
+  const toolWidth = 80;
+  const toolGap = 8;
+  editTools.forEach((tool, i) => {
+    const toolBtn = createSegmentedButton(`Btn_Tool_${tool}`, 20 + (i * (toolWidth + toolGap)), 165, toolWidth, 28, tool);
+    panelFrame.appendChild(toolBtn);
+  });
+  
+  // C) MASTER PKE CONTROL
+  const pkeFrame = createFrame("Scalar/PKE_MasterControl", 20, 210, leftWidth - 40, 60);
+  
+  const pkeBg = createRoundedRect(0, 0, leftWidth - 40, 60, 16, COLORS.prometheusBlack, COLORS.glowYellow, 2, 0.8);
+  pkeBg.name = "PKE_Background";
+  addGlowEffect(pkeBg, COLORS.glowYellow, 16, 0.3);
+  pkeFrame.appendChild(pkeBg);
+  
+  const pkeIcon = createPKEIcon("Icon_PKE_Master", 15, 15, 28, true);
+  pkeFrame.appendChild(pkeIcon);
+  
+  const pkeLabel = createText("PROMETHEUS: SCALAR BUILDER", 55, 22, 13, COLORS.glowYellow, "SemiBold", 8);
+  pkeLabel.name = "Label_PKE";
+  pkeFrame.appendChild(pkeLabel);
+  
+  panelFrame.appendChild(pkeFrame);
+  
+  // D) NAVIGATION BUTTONS
+  const navY = 480;
+  const navBtnWidth = (leftWidth - 60) / 2;
+  
+  const returnBtn = createGlassButton("Btn_ReturnToFront", 20, navY, navBtnWidth, 45, "RETURN TO\nFRONT PAGE", 16);
+  panelFrame.appendChild(returnBtn);
+  
+  const continueBtn = createGlassButton("Btn_ContinueToContent", 30 + navBtnWidth, navY, navBtnWidth, 45, "CONTINUE TO\nCONTENT MGR", 16);
+  panelFrame.appendChild(continueBtn);
+  
+  // Warnings panel
+  const warningsPanel = createSmallPanel("Scalar/Panel_Warnings", 20, 290, leftWidth - 40, 170, "WARNINGS", COLORS.neonBlue, 16);
+  
+  const warningText = createText("No warnings.", 15, 35, 11, COLORS.softGrey, "Regular");
+  warningText.name = "Label_WarningContent";
+  warningsPanel.appendChild(warningText);
+  
+  const warningInfo = createText("Bloom's verb validation will appear here.", 15, 55, 10, COLORS.inactiveGrey, "Regular");
+  warningInfo.name = "Label_WarningInfo";
+  warningsPanel.appendChild(warningInfo);
+  
+  panelFrame.appendChild(warningsPanel);
+  
+  parent.appendChild(panelFrame);
+  return panelFrame;
+}
+
+function createScalarGridPanel(parent) {
+  // Right column (70-72%) for Scalar Manager
+  const leftColumnWidth = 400 + MARGIN + 20;  // Left panel + margin + gap
+  const gridWidth = FRAME_WIDTH - leftColumnWidth - MARGIN;
+  const panelFrame = createPanel("Scalar/Panel_ScalarGrid", leftColumnWidth, 155, gridWidth, 580, "COURSE SCALAR", COLORS.neonBlue, 28);
+  
+  // Column definitions
+  const columns = [
+    { label: "CLOs", width: 150 },
+    { label: "Topics", width: 150 },
+    { label: "Subtopics", width: 160 },
+    { label: "Lessons", width: 150 },
+    { label: "Perf. Criteria", width: 170 },
+    { label: "Reserved", width: 140 },
+  ];
+  
+  const columnGap = 8;
+  const startX = 20;
+  const startY = 50;
+  const columnHeight = 510;
+  
+  let currentX = startX;
+  columns.forEach((col, i) => {
+    const column = createScalarColumn(
+      `Scalar/Column_${col.label.replace(/\s/g, '')}`,
+      currentX, startY,
+      col.width, columnHeight,
+      col.label, 0
+    );
+    panelFrame.appendChild(column);
+    currentX += col.width + columnGap;
+  });
+  
+  parent.appendChild(panelFrame);
+  return panelFrame;
+}
+
+function createScalarManagerPage() {
+  // Create Scalar Manager frame
+  const scalarFrame = figma.createFrame();
+  scalarFrame.name = "Prometheus V2 – Scalar Manager";
+  scalarFrame.resize(FRAME_WIDTH, FRAME_HEIGHT);
+  scalarFrame.fills = createSolidPaint(COLORS.prometheusBlack);
+  scalarFrame.x = FRAME_WIDTH + 100;  // Position to the right of dashboard
+  scalarFrame.y = 0;
+  
+  // Add subtle radial gradient overlay
+  const gradientOverlay = createRoundedRect(FRAME_WIDTH/2 - 400, FRAME_HEIGHT/2 - 300, 800, 600, 400, COLORS.softGrey, null, 0, 0.03);
+  gradientOverlay.name = "Background_RadialOverlay";
+  scalarFrame.appendChild(gradientOverlay);
+  
+  // Global elements (same positions as dashboard)
+  createHeader(scalarFrame, "SCALAR MANAGER");
+  createTopBarButtons(scalarFrame, true);  // LOAD and DELETE disabled
+  createStatusInfo(scalarFrame);
+  
+  // Scalar Manager specific panels
+  createScalarControlPanel(scalarFrame);
+  createScalarGridPanel(scalarFrame);
+  
+  // Global elements
+  createAIConsole(scalarFrame, 745);
+  createBottomStrip(scalarFrame);
+  
+  return scalarFrame;
+}
+
+// ============================================
+// DASHBOARD PAGE (Original)
+// ============================================
+
+function createDashboardPage() {
+  // Create main frame with proper margins
+  const mainFrame = figma.createFrame();
+  mainFrame.name = "Prometheus_Dashboard_V2";
+  mainFrame.resize(FRAME_WIDTH, FRAME_HEIGHT);
+  mainFrame.fills = createSolidPaint(COLORS.prometheusBlack);
+  
+  // Add subtle radial gradient overlay (simulated with rectangle)
+  const gradientOverlay = createRoundedRect(FRAME_WIDTH/2 - 400, FRAME_HEIGHT/2 - 300, 800, 600, 400, COLORS.softGrey, null, 0, 0.03);
+  gradientOverlay.name = "Background_RadialOverlay";
+  mainFrame.appendChild(gradientOverlay);
+  
+  // Build all UI sections in proper layer order
+  createWorkflowConnectors(mainFrame);  // Behind everything
+  createHeader(mainFrame);
+  createTopBarButtons(mainFrame, false);
+  createStatusInfo(mainFrame);
+  createCourseSelectionArea(mainFrame);
+  createLearningObjectivesPanel(mainFrame);
+  createCourseInformationPanel(mainFrame);
+  createCourseDescriptionPanel(mainFrame);
+  createManagerNodes(mainFrame);
+  createAIConsole(mainFrame, 635);
+  createGeneratePanel(mainFrame);
+  createBottomStrip(mainFrame);
+  
+  return mainFrame;
 }
 
 // ============================================
@@ -774,38 +1150,19 @@ async function main() {
   try {
     await loadFonts();
     
-    // Create main frame with proper margins
-    const mainFrame = figma.createFrame();
-    mainFrame.name = "Prometheus_Dashboard_V2";
-    mainFrame.resize(FRAME_WIDTH, FRAME_HEIGHT);
-    mainFrame.fills = createSolidPaint(COLORS.prometheusBlack);
+    // Create Dashboard page
+    const dashboardFrame = createDashboardPage();
     
-    // Add subtle radial gradient overlay (simulated with rectangle)
-    const gradientOverlay = createRoundedRect(FRAME_WIDTH/2 - 400, FRAME_HEIGHT/2 - 300, 800, 600, 400, COLORS.softGrey, null, 0, 0.03);
-    gradientOverlay.name = "Background_RadialOverlay";
-    mainFrame.appendChild(gradientOverlay);
+    // Create Scalar Manager page
+    const scalarFrame = createScalarManagerPage();
     
-    // Build all UI sections in proper layer order
-    createWorkflowConnectors(mainFrame);  // Behind everything
-    createHeader(mainFrame);
-    createTopBarButtons(mainFrame);
-    createStatusInfo(mainFrame);
-    createCourseSelectionArea(mainFrame);
-    createLearningObjectivesPanel(mainFrame);
-    createCourseInformationPanel(mainFrame);
-    createCourseDescriptionPanel(mainFrame);
-    createManagerNodes(mainFrame);
-    createAIConsole(mainFrame);
-    createGeneratePanel(mainFrame);
-    createBottomStrip(mainFrame);
+    // Center view on the created frames
+    figma.viewport.scrollAndZoomIntoView([dashboardFrame, scalarFrame]);
     
-    // Center view on the created frame
-    figma.viewport.scrollAndZoomIntoView([mainFrame]);
+    // Select both frames
+    figma.currentPage.selection = [dashboardFrame, scalarFrame];
     
-    // Select the main frame
-    figma.currentPage.selection = [mainFrame];
-    
-    figma.notify("✅ Prometheus V2 UI generated - Global UI Contract compliant!");
+    figma.notify("✅ Prometheus V2 Dashboard & Scalar Manager generated!");
     
   } catch (error) {
     figma.notify("❌ Error: " + error.message);
