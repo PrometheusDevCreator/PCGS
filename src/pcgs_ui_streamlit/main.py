@@ -37,6 +37,8 @@ def main():
     st.markdown("---")
 
     st.sidebar.title("Navigation")
+    # TODO: Delegate tab routing to `pcgs_app.app_root.get_app_tabs()` to keep this
+    # shell thin once the new app layer stabilises.
     page = st.sidebar.radio("Go to", ["Dashboard", "Course Setup", "Scalar Builder", "Lesson Builder", "Timetable", "Exports", "Settings"])
 
     if page == "Dashboard":
@@ -56,4 +58,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
 

@@ -46,3 +46,9 @@ def generate_lessons(course_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         {"title": "Advanced Concepts", "content": "Placeholder content"}
     ]
 
+
+
+
+
+
+

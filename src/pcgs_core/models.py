@@ -73,3 +73,9 @@ class Course:
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
 
+
+
+
+
+
+

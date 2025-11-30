@@ -39,3 +39,9 @@ def build_timetable_for_course(course: Course) -> Course:
     print(f"[WORKFLOW] Building timetable for course {course.id}")
     raise NotImplementedError("Workflow pending implementation")
 
+
+
+
+
+
+

@@ -48,3 +48,9 @@ root/
 *   **Interface-First**: Agents and Storage are defined by interfaces, allowing implementations to change (e.g., from local JSON to SQL, or from Mock AI to Real AI) without breaking the system.
 *   **Template-Driven**: Exports rely on external templates, making branding changes easy.
 
+
+
+
+
+
+

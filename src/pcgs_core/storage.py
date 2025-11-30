@@ -35,3 +35,9 @@ def list_courses(user_id: str) -> List[Course]:
     print(f"[STORAGE] Would list courses for user: {user_id}")
     return []
 
+
+
+
+
+
+

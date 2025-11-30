@@ -15,3 +15,9 @@ def get_template_path(template_name: str, file_type: str) -> str:
     # TODO: Implement template lookup logic
     return f"templates/{template_name}.{file_type}"
 
+
+
+
+
+
+
